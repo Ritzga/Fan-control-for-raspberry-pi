@@ -3,13 +3,13 @@
 ## Requirements:
 
 ### Hardware
-⋅* Raspberry Pi with Raspbian (Kernelversion 4.x)
-⋅* BME280 Module
-⋅* 4 Pin Fan (12v-VCC, GND, RPM, PWM)
+* Raspberry Pi with Raspbian (Kernelversion 4.x)
+* BME280 Module
+* 4 Pin Fan (12v-VCC, GND, RPM, PWM)
 
 ### Software 
 
-.* Access to the kernel (load and unload kernel modules)
+* Access to the kernel (load and unload kernel modules)
 
 ## Setup:
 
@@ -40,7 +40,7 @@ modeinfo {kernel module}
 show kernel log:
 dmesg
 ```
-### wiring the bme280 and the fan
+### Wiring the bme280 and the fan
 
 {INSERT WIRING PIC HERE}
 
