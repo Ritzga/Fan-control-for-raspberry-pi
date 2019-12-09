@@ -6,17 +6,36 @@
 #include <fstream>
 #include <vector>
 #include <utility>
-
-#define MaxPWM 256
+#include <chrono>
+#include <thread>
 
 using namespace std;
+using namespace std::this_thread;     // sleep_for, sleep_until
+using namespace std::chrono_literals; // ns, us, ms, s, h, etc.
+using std::chrono::system_clock;
 
+#define MaxPWM 256
 #define PWM_pin = 1;   /* GPIO 1 as per WiringPi, GPIO18 as per BCM */
-#define TachoPin 3
+#define TachoPin 3;
 
-int main ()
+float temp = 20.00; //current temperature
+int pwmIntensity = 20;
+vector<pair<int, int>> speedList; //list of all speed steps
+
+int random(int min, int max) //range : [min, max)
 {
-    vector<pair<int, int>> speedList;
+   static bool first = true;
+   if (first)
+   {
+      srand( time(NULL) ); //seeding for the first time only!
+      first = false;
+   }
+   return min + rand() % (( max + 1 ) - min);
+}
+
+vector<pair<int, int>> readConfig()
+{
+    vector<pair<int, int>> list;
     string line;
     ifstream myfile;
     myfile.open("config.fennec");
@@ -36,7 +55,36 @@ int main ()
         token = line.substr(0, pos);
         line.erase(0, pos + delimiter.length());
         pair<int, int> p1 = {stoi(token), stoi(line)};
-        speedList.push_back(p1);
+        list.push_back(p1);
+    }
+    return list;
+}
+
+int readTemp()
+{
+    return random(15, 45);
+}
+
+int main ()
+{
+    speedList = readConfig();
+    while(true)
+    {
+        temp = readTemp();
+        for (auto &speed : speedList) // access by reference to avoid copying
+        {
+            if(temp < speed.first)
+            {
+                continue;
+            }
+            else
+            {
+                pwmIntensity = speed.second;
+            }
+            //std::cout << "at temperature " << speed.first << " with speed " << speed.second << '\n';
+        }
+        std::cout << "current temperature " << temp << " with setted speed " << pwmIntensity << '\n';
+        sleep_for(5s);
     }
     /*
     int intensity ;
