@@ -33,16 +33,13 @@ __attribute__((section("__versions"))) = {
 	{ 0xe549e5f5, "__register_chrdev" },
 	{ 0xe82cc1c0, "i2c_new_device" },
 	{ 0xc01d79f2, "i2c_get_adapter" },
-	{ 0xdb7305a1, "__stack_chk_fail" },
-	{ 0x1f1e05af, "hrtimer_forward" },
-	{ 0x8f678b07, "__stack_chk_guard" },
-	{ 0x5c7ab3bb, "i2c_smbus_read_byte_data" },
 	{ 0xbb72d4fe, "__put_user_1" },
 	{ 0x7c32d0f0, "printk" },
 	{ 0x35034fdd, "try_module_get" },
 	{ 0x91715312, "sprintf" },
-	{ 0x2e5810c6, "__aeabi_unwind_cpp_pr1" },
 	{ 0x8b307391, "module_put" },
+	{ 0x2e5810c6, "__aeabi_unwind_cpp_pr1" },
+	{ 0x1f1e05af, "hrtimer_forward" },
 	{ 0xb1ad28e0, "__gnu_mcount_nc" },
 };
 
@@ -52,4 +49,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "107E4474D3B5A9BB50AFEB3");
+MODULE_INFO(srcversion, "A07D054137846D4847EACC4");

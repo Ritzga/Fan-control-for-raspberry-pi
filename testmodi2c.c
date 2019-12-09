@@ -54,6 +54,8 @@ static int Device_Open = 0;
 static struct i2c_client* client;
 static struct i2c_adapter* adptr;
 
+
+
 static int temperature = 1234;
 
 static struct file_operations fops = {
@@ -73,6 +75,11 @@ static struct i2c_board_info bme280_i2c_board_info = {
 
 static s32 bme280_read_block_data_once(const struct i2c_client *client, u8 command, u8 length, u8 *values)
 {
+	if(!client)
+	{
+	    pr_alert("[bme280_read_block_data_once]: Client was null!");
+	    return -1;
+	}
 	s32 i, data;
 	
 	for (i=0; i < length; i++)
@@ -199,7 +206,8 @@ static ssize_t driver_write(struct file *Instanz,const char *User, size_t Count,
 static enum hrtimer_restart timer_function(struct hrtimer * timer)
 {
         // @Do your work here. 
-    SetTemperature();/*
+    SetTemperature();
+    /*
     int ret = snprintf(msg, sizeof msg, "%f", temperature);
 
     if (ret < 0) {
@@ -216,7 +224,8 @@ static enum hrtimer_restart timer_function(struct hrtimer * timer)
 
 static void SetTemperature(){
     u8 temps[3];
-    bme280_read_block_data(client, 0xFA, 3, temps);/*
+    //bme280_read_block_data(client, 0xFA, 3, temps);
+    /*
     u8 bT1[2], bT2[2], bT3[2];
     bme280_read_block_data(client, 0x88, 2, bT1);
     bme280_read_block_data(client, 0x8A, 2, bT2);
@@ -241,10 +250,105 @@ static void SetTemperature(){
 }
 
 //=======================================================================
+//i2c BME280 functions
+static int bme280_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info)
+{
+	struct i2c_adapter *adapter = client->adapter;
+
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE
+				     | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
+		return -ENODEV;
+
+	/* Now, we would do the remaining detection. But the PCF8591 is plainly
+	   impossible to detect! Stupid chip. */
+
+	strlcpy(info->type, "bme280", I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int pcf8591_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct pcf8591_data *data;
+	int err;
+
+	if (!(data = kzalloc(sizeof(struct pcf8591_data), GFP_KERNEL))) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(client, data);
+	mutex_init(&data->update_lock);
+
+	/* Initialize the PCF8591 chip */
+	pcf8591_init_client(client);
+
+	/* Register sysfs hooks */
+	err = sysfs_create_group(&client->dev.kobj, &pcf8591_attr_group);
+	if (err)
+		goto exit_kfree;
+
+	/* Register input2 if not in "two differential inputs" mode */
+	if (input_mode != 3) {
+		if ((err = device_create_file(&client->dev,
+					      &dev_attr_in2_input)))
+			goto exit_sysfs_remove;
+	}
+
+	/* Register input3 only in "four single ended inputs" mode */
+	if (input_mode == 0) {
+		if ((err = device_create_file(&client->dev,
+					      &dev_attr_in3_input)))
+			goto exit_sysfs_remove;
+	}
+
+	return 0;
+
+exit_sysfs_remove:
+	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
+	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
+exit_kfree:
+	kfree(data);
+exit:
+	return err;
+}
+
+static int pcf8591_remove(struct i2c_client *client)
+{
+	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
+	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
+	kfree(i2c_get_clientdata(client));
+	return 0;
+}
+//=======================================================================
+static const struct i2c_device_id bme280_id[] = {
+	{ "bme280", 0 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(i2c, bme280_id);
+
+static struct i2c_driver bme280_driver = {
+	.driver = {
+		.name	= "bme280",
+	},
+	.probe		= bme280_probe,
+	.remove		= bme280_remove,
+	.id_table	= bme280_id,
+
+	.class		= I2C_CLASS_HWMON,	/* Nearest choice */
+	.detect		= bme280_detect,
+	//.address_data	= &addr_data,
+};
+
 static int timer_init(void)
 {    
+    /*
     adptr = i2c_get_adapter(1);
     client = i2c_new_device(adptr, &bme280_i2c_board_info);
+	*/
 	
     //Set Timer
     if(register_chrdev(201, DEVICE_NAME, &fops) == 0)
@@ -254,20 +358,24 @@ static int timer_init(void)
         htimer.function = timer_function;
         hrtimer_start(& htimer, kt_periode, HRTIMER_MODE_REL);
     
-        return 0;
+	return i2c_add_driver(&bme280_driver);
     }
     else
     {
         return -EIO;
     }    
     
+    
+    
 }
 
 static void timer_cleanup(void)
 {
+    
+    i2c_del_driver(&bme280_driver);
     hrtimer_cancel(& htimer);
     
-	unregister_chrdev(201, DEVICE_NAME);
+    unregister_chrdev(201, DEVICE_NAME);
 }
 
 
@@ -279,5 +387,5 @@ module_exit(timer_cleanup);
  * https://wintergreenworks.wordpress.com/2019/02/20/using-hr-timer-in-linux-kernel/
  * https://linux.die.net/lkmpg/x569.html
  * https://github.com/raspberrypi/linux/blob/rpi-4.4.y/drivers/rtc/rtc-ds1307.c
- * 
+ * https://github.com/spotify/linux/blob/master/drivers/hwmon/pcf8591.c
  */
