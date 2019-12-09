@@ -1,0 +1,31 @@
+//g++ test2.cpp -o test -Wall -lwiringPiu
+
+#include <wiringPi.h>
+#include <iostream>
+#include <stdio.h>
+
+#define TachoPin ?
+
+void setup();
+void loop();
+
+
+
+int main ()
+{
+	setup();
+
+	while(true)
+	{
+		loop();
+	}
+}
+
+
+void setup(){
+ 	pinMode(TachoPin, INPUT);
+}
+
+void loop(){
+	
+}
