@@ -1,0 +1,1 @@
+cmd_/home/pi/sysprog/repo/testmodi2c.ko := ld -r  -EL -T ./scripts/module-common.lds -T ./arch/arm/kernel/module.lds  --build-id  -o /home/pi/sysprog/repo/testmodi2c.ko /home/pi/sysprog/repo/testmodi2c.o /home/pi/sysprog/repo/testmodi2c.mod.o ;  true

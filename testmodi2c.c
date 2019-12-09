@@ -35,7 +35,7 @@ MODULE_VERSION("0.1a");
 #define BLOCK_DATA_MAX_TRIES 10
 #define DEVICE_NAME "testi2c"
 #define SUCCESS 0
-#define DEVICE_NAME "chardev"	/* Dev name as it appears in /proc/devices   */
+#define DEVICE_NAME "testi2c"	/* Dev name as it appears in /proc/devices   */
 #define BUF_LEN 80		/* Max length of the message from the device */
 
 static struct hrtimer htimer;
@@ -46,10 +46,15 @@ static int driver_open(struct inode*geraete_datei, struct file *instanz );
 static int driver_close(struct inode*geraete_datei, struct file *instanz );
 static ssize_t driver_read(struct file *filp, char *buffer,  size_t length, loff_t * offset);
 static ssize_t driver_write(struct file *Instanz,const char *User, size_t Count, loff_t *offs);
+static void SetTemperature(void);
 
 static char msg[BUF_LEN];	/* The msg the device will give when asked */
 static char *msg_Ptr;
 static int Device_Open = 0;
+static struct i2c_client* client;
+static struct i2c_adapter* adptr;
+
+static int temperature = 1234;
 
 static struct file_operations fops = {
    read: driver_read,
@@ -58,6 +63,10 @@ static struct file_operations fops = {
    release: driver_close
 };
 
+
+static struct i2c_board_info bme280_i2c_board_info = {
+	I2C_BOARD_INFO("bme280", 0x76)
+};
 
 //=======================================================================
 //i2c Functionality
@@ -124,10 +133,6 @@ static s32 bme280_write_block_data(const struct i2c_client *client, u8 command, 
 		
 		return length;
 }
-static struct i2c_board_info stm32_i2c_test_board_info = {
-	I2C_BOARD_INFO("bme280", 0x76)
-};
-
 //=======================================================================
 //File Interface for userspace
 
@@ -141,8 +146,9 @@ static int driver_open(struct inode*geraete_datei, struct file *instanz )
 
 	Device_Open++;
 	
-	
-	sprintf(msg, "I already told you %d times Hello world!\n", counter++);
+	int temperature_high = temperature/100;
+	int temperature_low = temperature%100;
+	sprintf(msg, "%d.%d\n", temperature_high, temperature_low);
 	msg_Ptr = msg;
 	try_module_get(THIS_MODULE);
 
@@ -192,16 +198,55 @@ static ssize_t driver_write(struct file *Instanz,const char *User, size_t Count,
 
 static enum hrtimer_restart timer_function(struct hrtimer * timer)
 {
-    // @Do your work here. 
+        // @Do your work here. 
+    SetTemperature();/*
+    int ret = snprintf(msg, sizeof msg, "%f", temperature);
+
+    if (ret < 0) {
+        snprintf(msg, sizeof msg, "Coundn't convert float to char[].");
+    } 
+    if (ret >= sizeof msg) {
+        snprintf(msg, sizeof msg, "Float value truncated");
+    }*/
     
     hrtimer_forward_now(timer, kt_periode);
 
     return HRTIMER_RESTART;
 }
 
+static void SetTemperature(){
+    u8 temps[3];
+    bme280_read_block_data(client, 0xFA, 3, temps);/*
+    u8 bT1[2], bT2[2], bT3[2];
+    bme280_read_block_data(client, 0x88, 2, bT1);
+    bme280_read_block_data(client, 0x8A, 2, bT2);
+    bme280_read_block_data(client, 0x8C, 2, bT3);
+    
+    long temp_raw=(temps[0]<<16)+(temps[1]<<8)+temps[2];
+    long T1 = (bT1[0]<<8)+bT1[1];
+    long T2 = (bT2[0]<<8)+bT2[1];
+    long T3= (bT3[0]<<8)+bT3[1];
+    
+    int adc_T = temp_raw >> 4;
+    
+    int32_t var1  = ((((adc_T>>3) - ((int32_t)T1 <<1))) *
+		((int32_t)T2)) >> 11;
+    int32_t var2  = (((((adc_T>>4) - ((int32_t)T1)) *
+       ((adc_T>>4) - ((int32_t)T1))) >> 12) *
+	((int32_t)T3)) >> 14;
+	
+    int T  = ((var1 + var2) * 5 + 128) >> 8;
+    temperature = T/100;*/
+    temperature++;
+}
+
 //=======================================================================
 static int timer_init(void)
 {    
+    adptr = i2c_get_adapter(1);
+    client = i2c_new_device(adptr, &bme280_i2c_board_info);
+	
+    //Set Timer
     if(register_chrdev(201, DEVICE_NAME, &fops) == 0)
     {
         kt_periode = ktime_set(0, 500000000); //seconds,nanoseconds
@@ -234,4 +279,5 @@ module_exit(timer_cleanup);
  * https://wintergreenworks.wordpress.com/2019/02/20/using-hr-timer-in-linux-kernel/
  * https://linux.die.net/lkmpg/x569.html
  * https://github.com/raspberrypi/linux/blob/rpi-4.4.y/drivers/rtc/rtc-ds1307.c
+ * 
  */
