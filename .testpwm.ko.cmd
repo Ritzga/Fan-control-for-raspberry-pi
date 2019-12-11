@@ -1,0 +1,1 @@
+cmd_/home/pi/sysprog/repo/testpwm.ko := ld -r  -EL -T ./scripts/module-common.lds -T ./arch/arm/kernel/module.lds  --build-id  -o /home/pi/sysprog/repo/testpwm.ko /home/pi/sysprog/repo/testpwm.o /home/pi/sysprog/repo/testpwm.mod.o ;  true
