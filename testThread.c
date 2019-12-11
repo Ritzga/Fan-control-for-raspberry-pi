@@ -28,7 +28,6 @@
 #include "testThread.h"          //header file includes some debug functions
 
 #include <linux/module.h>
-#include <linux/scheduler.h>
 #include <linux/kernel.h>           //used for do_exit()
 #include <linux/threads.h>          //used for allow_signal
 #include <linux/kthread.h>          //used for kthread_create
