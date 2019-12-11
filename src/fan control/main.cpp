@@ -22,9 +22,33 @@ using std::chrono::system_clock;
 #define MaxPWM 256
 #define PWM_pin 1   /* GPIO 1 as per WiringPi, GPIO18 as per BCM */
 #define TachoPin 3
+#define BME280_ADDRESS                0x76
+
+#define BME280_REGISTER_DIG_T1        0x88
+#define BME280_REGISTER_DIG_T2        0x8A
+#define BME280_REGISTER_DIG_T3        0x8C
+
+typedef struct
+{
+  uint16_t dig_T1;
+  int16_t  dig_T2;
+  int16_t  dig_T3;
+} bme280_calib_data;
+
+typedef struct
+{
+  uint8_t tmsb;
+  uint8_t tlsb;
+  uint8_t txsb;
+
+  uint32_t temperature;
+
+} bme280_raw_data;
+
 /* temperature ------------------------------------------------------
 
 */
+int fd;
 float temp = 20.0f; //current temperature
 /* fan speed --------------------------------------------------------
 
@@ -81,16 +105,60 @@ vector<pair<int, int>> readConfig()
 }
 
 void setUpTemp() {
-    pinMode(TachoPin, INPUT);
-    pTimer = (float)clock()/CLOCKS_PER_SEC;
+    fd = wiringPiI2CSetup(0x76);
+	if(fd < 0) {
+		printf("Device not found");
+		return -1;
+	}
 }
 
+void readCalibrationData(int fd, bme280_calib_data *data) {
+  data->dig_T1 = (uint16_t)wiringPiI2CReadReg16(fd, BME280_REGISTER_DIG_T1);
+  data->dig_T2 = (int16_t)wiringPiI2CReadReg16(fd, BME280_REGISTER_DIG_T2);
+  data->dig_T3 = (int16_t)wiringPiI2CReadReg16(fd, BME280_REGISTER_DIG_T3);
+}
 
-float readRealTemp()
+void getRawData(int fd, bme280_raw_data *raw) {
+  wiringPiI2CWrite(fd, 0xfa);
+
+  raw->tmsb = wiringPiI2CRead(fd);
+  raw->tlsb = wiringPiI2CRead(fd);
+  raw->txsb = wiringPiI2CRead(fd);
+
+  raw->temperature = 0;
+  raw->temperature = (raw->temperature | raw->tmsb) << 8;
+  raw->temperature = (raw->temperature | raw->tlsb) << 8;
+  raw->temperature = (raw->temperature | raw->txsb) >> 4;
+}
+
+int32_t getTemperatureCalibration(bme280_calib_data *cal, int32_t adc_T) {
+  int32_t var1  = ((((adc_T>>3) - ((int32_t)cal->dig_T1 <<1))) *
+     ((int32_t)cal->dig_T2)) >> 11;
+
+  int32_t var2  = (((((adc_T>>4) - ((int32_t)cal->dig_T1)) *
+       ((adc_T>>4) - ((int32_t)cal->dig_T1))) >> 12) *
+     ((int32_t)cal->dig_T3)) >> 14;
+
+  return var1 + var2;
+}
+
+float compensateTemperature(int32_t t_fine) {
+  float T  = (t_fine * 5 + 128) >> 8;
+  return T/100;
+}
+
+void readRealTemp()
 {
-    int fd = open("/dev/file", O_RDWR | O_NONBLOCK);
-    return 0;
-    
+  	wiringPiI2CWriteReg8(fd, 0xf4, 0x25);   // pressure and temperature oversampling x 1, mode normal
+	bme280_calib_data cal;
+	readCalibrationData(fd, &cal);
+
+	bme280_raw_data raw;
+	getRawData(fd, &raw);
+
+	int32_t t_fine = getTemperatureCalibration(&cal, raw.temperature);
+	temp = compensateTemperature(t_fine);
+	cout << temp << endl;
 }
 
 float readTemp()
@@ -122,8 +190,8 @@ void getPWMSpeed()
 void setPWM()
 {
     getPWMSpeed();
-    pwmWrite(PWM_pin, pwmIntensity);
-    //pwmWrite (PWM_pin, 128) ;
+    //pwmWrite(PWM_pin, pwmIntensity);
+    system("echo \""+ to_string(pwmIntensity) +"\" > /sys/module/testpwm/parameters/duty");
 }
 
 void setUpTacho() {
@@ -162,7 +230,8 @@ int main ()
     setUpPWM();
     while(true)
     {
-        temp = readTemp();
+        //temp = readTemp();
+        readRealTemp();
         setPWM();
         std::cout << "current temperature " << temp << " with setted speed " << pwmIntensity << '\n';
         readTacho();
