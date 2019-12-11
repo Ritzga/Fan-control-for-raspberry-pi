@@ -21,6 +21,8 @@ int duty      = 50;			// Dutycycle in %
 int frequency = 25000;		// Frequency in Hz...
 int enable    = 1;			// 0 = disable, 1 = enable 
 
+volatile int sem = 0;
+
 /* Global Threading variables*/
 static struct task_struct *worker_task;
 static int get_current_cpu;
@@ -54,14 +56,16 @@ void __exit pwm_gpio_exit(void)
 	int tusec_On;
 	int tusec_Off;
 	
+	//sem=1;
+	
 	allow_signal(SIGKILL);
 	
 	while(!kthread_should_stop()){
-		printk("Worker thread executing on system CPU:%d \n",get_cpu());
-
 		/* Calculate from frequency and dutycycle the delay-times */
+		
 		tusec_On  = (1000000*duty)/(frequency*100);			// Duration of on-cycle
 		tusec_Off = (1000000*(100-duty))/(frequency*100);	// Duration of off-cycle
+		printk("duty:%d, tusec_on:%d, tusec_off:%d, freq:%d", duty, tusec_On, tusec_Off, frequency);
 		gpio_set_value(pwm1, 1);
 		usleep_range(tusec_On, tusec_On);
 		gpio_set_value(pwm1, 0);
@@ -70,7 +74,7 @@ void __exit pwm_gpio_exit(void)
 		if (signal_pending(worker_task))
 			            break;
 	}
-
+	//sem=0;
 	do_exit(0);
 
 	pr_alert("Worker task exiting\n");
@@ -100,7 +104,8 @@ int pwn_run_init(void)
 		printk("Worker task created successfully\n");
 	else
 		printk("Worker task error while creating\n");
-
+	wake_up_process(worker_task);
+	
 	return 0;
 }
  
@@ -110,7 +115,9 @@ void pwm_run_exit(void)
 	//End thread
 	
 	if(worker_task)
-		kthread_stop(worker_task); 		
+		kthread_stop(worker_task); 
+	//while(sem);
+			
 }
  
 /*--------------------------------------------------*/
@@ -131,6 +138,7 @@ void __exit pwm_exit(void)
 	printk(KERN_INFO " Ending the function %s. \n", __FUNCTION__);
 	pwm_run_exit();
 	pwm_gpio_exit();
+	usleep_range(60000, 60000);
 	
 }
  

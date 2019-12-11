@@ -28,6 +28,7 @@ __attribute__((section("__versions"))) = {
 	{ 0xf230cadf, "module_layout" },
 	{ 0xfd958c00, "param_ops_int" },
 	{ 0x9f8384f0, "kthread_stop" },
+	{ 0x294d1ccc, "wake_up_process" },
 	{ 0xe83b4eca, "kthread_bind" },
 	{ 0x938e50ff, "kthread_create_on_node" },
 	{ 0xfe990052, "gpio_free" },
@@ -51,4 +52,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "FFCB61A02E81508C3E03C4A");
+MODULE_INFO(srcversion, "BF156DBB07B6B42A7F2A3F8");

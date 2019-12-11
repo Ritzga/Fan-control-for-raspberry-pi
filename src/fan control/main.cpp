@@ -1,5 +1,6 @@
 // g++ main.cpp -Wall -o test -lwiringPi
 #include <wiringPi.h>
+#include <wiringPiI2C.h>
 #include <stdio.h>
 #include <cstdlib>
 #include <iostream>
@@ -104,12 +105,14 @@ vector<pair<int, int>> readConfig()
     return list;
 }
 
-void setUpTemp() {
+int setUpTemp() {
     fd = wiringPiI2CSetup(0x76);
-	if(fd < 0) {
-		printf("Device not found");
-		return -1;
+	if(fd < 0) 
+    {
+        printf("Device not found");
+        return -1;
 	}
+    return 1;
 }
 
 void readCalibrationData(int fd, bme280_calib_data *data) {
@@ -189,9 +192,14 @@ void getPWMSpeed()
 
 void setPWM()
 {
+    using namespace std::string_literals;
+    ofstream f("/sys/module/testpwm/parameters/duty");
     getPWMSpeed();
     //pwmWrite(PWM_pin, pwmIntensity);
-    system("echo \""+ to_string(pwmIntensity) +"\" > /sys/module/testpwm/parameters/duty");
+    //string cmd = "echo '90' | sudo tee /sys/module/testpwm/parameters/duty";
+    //system(cmd.data());
+    f << pwmIntensity << endl; 
+    //cout << cmd;
 }
 
 void setUpTacho() {
@@ -224,17 +232,18 @@ void readTacho()
 
 int main ()
 {
+    wiringPiSetup();
     speedList = readConfig();
     setUpTemp();
-    setUpTacho();
-    setUpPWM();
+    //setUpTacho();
+    //setUpPWM();
     while(true)
     {
         //temp = readTemp();
         readRealTemp();
         setPWM();
         std::cout << "current temperature " << temp << " with setted speed " << pwmIntensity << '\n';
-        readTacho();
+        //readTacho();
         sleep_for(2s);
     }
 }
