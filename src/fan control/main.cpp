@@ -1,5 +1,5 @@
 // g++ test.cpp -Wall -o test -lwiringPi
-//#include <wiringPi.h>
+#include <wiringPi.h>
 #include <stdio.h>
 #include <cstdlib>
 #include <iostream>
@@ -8,18 +8,38 @@
 #include <utility>
 #include <chrono>
 #include <thread>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 using namespace std;
 using namespace std::this_thread;     // sleep_for, sleep_until
 using namespace std::chrono_literals; // ns, us, ms, s, h, etc.
 using std::chrono::system_clock;
+/* pin configuration ------------------------------------------------
 
+*/
 #define MaxPWM 256
 #define PWM_pin = 1;   /* GPIO 1 as per WiringPi, GPIO18 as per BCM */
 #define TachoPin 3;
+/* temperature ------------------------------------------------------
 
-float temp = 20.00; //current temperature
+*/
+float temp = 20.0f; //current temperature
+/* fan speed --------------------------------------------------------
+
+*/
 int pwmIntensity = 20;
+/* fan tacho --------------------------------------------------------
+
+*/
+float tacho = 0.0f;
+bool ps_tachoPin = false;
+int rcount = 0;
+float pTimer;
+/* settings ---------------------------------------------------------
+
+*/
 vector<pair<int, int>> speedList; //list of all speed steps
 
 int random(int min, int max) //range : [min, max)
@@ -60,57 +80,92 @@ vector<pair<int, int>> readConfig()
     return list;
 }
 
-int readTemp()
+void setUpTemp() {
+    pinMode(TachoPin, INPUT);
+    pTimer = (float)clock()/CLOCKS_PER_SEC;
+}
+
+
+float readRealTemp()
+{
+    int fd = open("/dev/file", O_RDWR | O_NONBLOCK);
+    return 0;
+    
+}
+
+float readTemp()
 {
     return random(15, 45);
+}
+
+void setUpPWM() {
+    pinMode (PWM_pin, PWM_OUTPUT);
+    pwmSetRange(MaxPWM);
+    pwmSetClock(4);
+}
+
+void getPWMSpeed()
+{
+    for (auto &speed : speedList) // access by reference to avoid copying
+    {
+        if(temp < speed.first)
+        {
+            continue;
+        }
+        else
+        {
+            pwmIntensity = speed.second;
+        }
+    }
+}
+
+void setPWM()
+{
+    getPWMSpeed();
+    pwmWrite(PWM_pin, pwmIntensity);
+    //pwmWrite (PWM_pin, 128) ;
+}
+
+void setUpTacho() {
+    pinMode(TachoPin, INPUT);
+    pTimer = (float)clock()/CLOCKS_PER_SEC;
+}
+
+float readTacho()
+{
+
+    if ((pTimer +1 )<((float)clock()/CLOCKS_PER_SEC)){
+        tacho  = rcount * 60;
+        cout <<rpm <<endl;
+        rcount = 0;
+        pTimer = (float)clock()/CLOCKS_PER_SEC;
+    }
+    if (digitalRead(TachoPin)==HIGH)
+    {
+        if (!ps_tachoPin)
+        {
+            ps_tachoPin=true;
+            rcount++;
+        }
+    }
+    else
+    {
+        ps_tachoPin = false;
+    }
 }
 
 int main ()
 {
     speedList = readConfig();
+    setUpTemp();
+    setUpTacho();
+    setUpPWM();
     while(true)
     {
         temp = readTemp();
-        for (auto &speed : speedList) // access by reference to avoid copying
-        {
-            if(temp < speed.first)
-            {
-                continue;
-            }
-            else
-            {
-                pwmIntensity = speed.second;
-            }
-            //std::cout << "at temperature " << speed.first << " with speed " << speed.second << '\n';
-        }
+        setPWM();
         std::cout << "current temperature " << temp << " with setted speed " << pwmIntensity << '\n';
-        sleep_for(5s);
+        readTacho();
+        sleep_for(2s);
     }
-    /*
-    int intensity ;
-
-    if (wiringPiSetup() == -1)
-    {
-        cout<<"Hello"<<endl;
-        exit(1);
-    }
-    pinMode (PWM_pin, PWM_OUTPUT);
-
-    pwmSetRange(MaxPWM);
-    pwmSetClock(4);
-
-    while (1)
-    {
-        for (intensity = 0; intensity < MaxPWM; intensity++){
-        pwmWrite(PWM_pin, intensity);
-        delay(10);
-        cout<<intensity<<endl;
-        }
-        for (intensity = MaxPWM; intensity > 0; intensity --){
-        pwmWrite(PWM_pin, intensity);
-        delay(10);
-        cout<<intensity<<endl;
-        }
-        //pwmWrite (PWM_pin, 128) ;
-    }*/
 }
