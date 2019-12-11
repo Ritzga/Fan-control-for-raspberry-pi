@@ -1,4 +1,4 @@
-// g++ test.cpp -Wall -o test -lwiringPi
+// g++ main.cpp -Wall -o test -lwiringPi
 #include <wiringPi.h>
 #include <stdio.h>
 #include <cstdlib>
@@ -20,8 +20,8 @@ using std::chrono::system_clock;
 
 */
 #define MaxPWM 256
-#define PWM_pin = 1;   /* GPIO 1 as per WiringPi, GPIO18 as per BCM */
-#define TachoPin 3;
+#define PWM_pin 1   /* GPIO 1 as per WiringPi, GPIO18 as per BCM */
+#define TachoPin 3
 /* temperature ------------------------------------------------------
 
 */
@@ -131,12 +131,12 @@ void setUpTacho() {
     pTimer = (float)clock()/CLOCKS_PER_SEC;
 }
 
-float readTacho()
+void readTacho()
 {
 
     if ((pTimer +1 )<((float)clock()/CLOCKS_PER_SEC)){
         tacho  = rcount * 60;
-        cout <<rpm <<endl;
+        cout << tacho <<endl;
         rcount = 0;
         pTimer = (float)clock()/CLOCKS_PER_SEC;
     }

@@ -29,5 +29,7 @@ static void __exit pix_exit(void){
   printk(KERN_INFO "PIX: stopping done.");
 }
 
+
+
 module_init(pix_init);
 module_exit(pix_exit);

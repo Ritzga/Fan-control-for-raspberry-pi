@@ -3,26 +3,16 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 
-#include <linux/config.h>
-#include <linux/version.h>
-
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/tqueue.h>
-#include <linux/wait.h>
-
-#include <asm/unistd.h>
-#include <asm/semaphore.h>
 
 MODULE_LICENSE("GPL");
  
-/* GPIO Pin Assignment*/
+
  
 #define pwm1		18 // Kernel PWM channel 0
  
 /* Global PWM parameters */
 int duty      = 50;			// Dutycycle in %
-int frequency = 10000;		// Frequency in Hz...
+int frequency = 25000;		// Frequency in Hz...
 int enable    = 1;			// 0 = disable, 1 = enable 
  
 module_param(duty, int, 0644);
