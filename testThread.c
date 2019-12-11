@@ -27,11 +27,15 @@
 
 #include "testThread.h"          //header file includes some debug functions
 
+#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/kernel.h>           //used for do_exit()
 #include <linux/threads.h>          //used for allow_signal
 #include <linux/kthread.h>          //used for kthread_create
 #include <linux/delay.h>            //used for ssleep()
+#include <linux/sched/signal.h>
+#include <linux/sched/types.h>
+
 
 /*@brief
  * variables for this example, task structs, cpu id's as integer
@@ -71,7 +75,7 @@ static int worker_task_handler_fn(void *arguments)
 	 *receive signal for stopping thread
 	 */
 	while(!kthread_should_stop()){
-		PINFO("Worker thread executing on system CPU:%d \n",get_cpu());
+		printk("Worker thread executing on system CPU:%d \n",get_cpu());
 		ssleep(WORKER_THREAD_DELAY);
 
 	/*@attention while(true),for(;;) loops will can't receive signals,
@@ -94,7 +98,7 @@ static int worker_task_handler_fn(void *arguments)
 
 	do_exit(0);
 
-	PERR("Worker task exiting\n");
+	pr_alert("Worker task exiting\n");
 	return 0;
 }
 
@@ -120,7 +124,7 @@ static int default_task_handler_fn(void *arguments)
 	*/
 	while(!kthread_should_stop())
 	{
-		PINFO("Default thread executing on system CPU:%d \n",get_cpu());
+		printk("Default thread executing on system CPU:%d \n",get_cpu());
 		ssleep(DEFAULT_THREAD_DELAY);
 
 	/*@attention while(true),for(;;) loops will can't receive signals,
@@ -133,7 +137,7 @@ static int default_task_handler_fn(void *arguments)
 		            break;
 	}
 
-	PERR("Default task exiting\n");
+	pr_alert("Default task exiting\n");
 
 	/*@brief
 	 * do_exit is same as exit(0) function, but must be used with threads
@@ -152,8 +156,6 @@ static int default_task_handler_fn(void *arguments)
 static int __init kernel_thread_init(void)
 {
 
-	/*@brief scheduler priority structs to set task priority
-	 */
 	struct sched_param task_sched_params =
 	{
 			.sched_priority = MAX_RT_PRIO
@@ -161,33 +163,33 @@ static int __init kernel_thread_init(void)
 
 	task_sched_params.sched_priority = 90;
 
-	PINFO("Initializing kernel mode thread example module\n");
-	PINFO("Creating Threads\n");
+	printk("Initializing kernel mode thread example module\n");
+	printk("Creating Threads\n");
 
 	/*@brief get current cpu to bind over task
 	 */
 	get_current_cpu = get_cpu();
-	PDEBUG("Getting current CPU %d to binding worker thread\n",
-											get_current_cpu);
+	//PDEBUG("Getting current CPU %d to binding worker thread\n",
+	//										get_current_cpu);
 
 	/*@brief initialize worker task with arguments, thread_name and cpu
 	 *@note you can see thread name using ps aux command on userspace
 	 */
 	worker_task = kthread_create(worker_task_handler_fn,
-			(void*)"arguments as char pointer","thread_name");
+			(void*)"arguments as char pointer","P");
 	kthread_bind(worker_task,get_current_cpu);
 
 	if(worker_task)
-		PINFO("Worker task created successfully\n");
+		printk("Worker task created successfully\n");
 	else
-		PINFO("Worker task error while creating\n");
+		printk("Worker task error while creating\n");
 
 	/*@brief initialize default task with arguments,thread_name and another cpu
 	 *@note you can see thread name using ps aux command on userspace
 	*/
 	set_current_cpu = 2;
-	PDEBUG("Getting current CPU %d to binding default thread\n",
-											set_current_cpu);
+	//PDEBUG("Getting current CPU %d to binding default thread\n",
+	//										set_current_cpu);
 
 	default_task = kthread_create(default_task_handler_fn,
 				(void*)"arguments as char pointer","thread_name");
@@ -202,17 +204,6 @@ static int __init kernel_thread_init(void)
 	wake_up_process(worker_task);
 	wake_up_process(default_task);
 
-	/*@brief check task if they are started succesfully
-	*/
-	if(worker_task)
-		PINFO("Worker thread running\n");
-	else
-		PERR("Worker task can't start\n");
-
-	if(default_task)
-		PINFO("Default thread running\n");
-	else
-		PERR("Default task can't start\n");
 
 	return 0;
 }
@@ -225,24 +216,12 @@ static int __init kernel_thread_init(void)
 */
 static void __exit kernel_thread_exit(void)
 {	
-
-	PERR("Module removing from kernel, threads stopping\n");
-
-	/*@brief
-	 * this functions will send SIGKILL's to stop threads when module removing
-	*/
-
 	if(worker_task)
 		kthread_stop(worker_task);
 
-	PERR("Worker task stopped\n");
 
 	if(default_task)
 		kthread_stop(default_task);
-
-	PERR("Default task stopped\n");
-
-	PINFO("Bye Bye\n");
 
 }
 

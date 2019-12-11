@@ -26,23 +26,20 @@ static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
 	{ 0xf230cadf, "module_layout" },
-	{ 0xfd958c00, "param_ops_int" },
 	{ 0x9f8384f0, "kthread_stop" },
+	{ 0xdb7305a1, "__stack_chk_fail" },
+	{ 0x294d1ccc, "wake_up_process" },
+	{ 0xc8460f5d, "sched_setscheduler" },
 	{ 0xe83b4eca, "kthread_bind" },
 	{ 0x938e50ff, "kthread_create_on_node" },
-	{ 0xfe990052, "gpio_free" },
-	{ 0xe2df5c3d, "gpiod_direction_output_raw" },
-	{ 0x47229b5c, "gpio_request" },
+	{ 0x8f678b07, "__stack_chk_guard" },
 	{ 0x2e5810c6, "__aeabi_unwind_cpp_pr1" },
-	{ 0x12a38747, "usleep_range" },
-	{ 0x6a8eabbf, "gpiod_set_raw_value" },
-	{ 0xe851e37e, "gpio_to_desc" },
-	{ 0x7c32d0f0, "printk" },
 	{ 0x952664c5, "do_exit" },
+	{ 0xf9a482f9, "msleep" },
+	{ 0x7c32d0f0, "printk" },
 	{ 0xb3f7646e, "kthread_should_stop" },
 	{ 0x6df1aaf1, "kernel_sigaction" },
 	{ 0xb1ad28e0, "__gnu_mcount_nc" },
-	{ 0x2196324, "__aeabi_idiv" },
 };
 
 static const char __module_depends[]
@@ -50,5 +47,3 @@ __used
 __attribute__((section(".modinfo"))) =
 "depends=";
 
-
-MODULE_INFO(srcversion, "FFCB61A02E81508C3E03C4A");
