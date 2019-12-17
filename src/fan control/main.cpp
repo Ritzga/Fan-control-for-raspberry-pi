@@ -161,7 +161,6 @@ void readRealTemp()
 
 	int32_t t_fine = getTemperatureCalibration(&cal, raw.temperature);
 	temp = compensateTemperature(t_fine);
-	cout << temp << endl;
 }
 
 float readTemp()
@@ -175,8 +174,16 @@ void setUpPWM() {
     pwmSetClock(4);
 }
 
+int calcPWM(int x1, int y1, int x2, int y2)
+{
+    return ((y2-y1)/(x2-x1)*(temp-x1)+ y1);
+}
+
 void getPWMSpeed()
 {
+    pair<int, int> oldVal;
+    oldVal.first = 0;
+    oldVal.second = 0;
     for (auto &speed : speedList) // access by reference to avoid copying
     {
         if(temp < speed.first)
@@ -185,8 +192,28 @@ void getPWMSpeed()
         }
         else
         {
-            pwmIntensity = speed.second;
+            if(oldVal.first > 0)
+            {
+                if(pwmIntensity > MaxPWM)
+                {
+                    pwmIntensity = MaxPWM;
+                }
+                else if(pwmIntensity < 1)
+                {
+                    pwmIntensity = 1;
+                }
+                else
+                {
+                    pwmIntensity = calcPWM(oldVal.first, oldVal.second, speed.first, speed.second);
+                }
+            }
+            else
+            {
+                pwmIntensity = speed.second;
+            }
+            
         }
+        oldVal = speed;
     }
 }
 
@@ -210,7 +237,7 @@ void setUpTacho() {
 void readTacho()
 {
 
-    if ((pTimer +1 )<((float)clock()/CLOCKS_PER_SEC)){
+    if((pTimer +1)<((float)clock()/CLOCKS_PER_SEC)){
         tacho  = rcount * 60;
         cout << tacho <<endl;
         rcount = 0;
@@ -235,15 +262,14 @@ int main ()
     wiringPiSetup();
     speedList = readConfig();
     setUpTemp();
-    //setUpTacho();
+    setUpTacho();
     //setUpPWM();
     while(true)
     {
-        //temp = readTemp();
         readRealTemp();
         setPWM();
         std::cout << "current temperature " << temp << " with setted speed " << pwmIntensity << '\n';
-        //readTacho();
-        sleep_for(2s);
+        readTacho();
+        sleep_for(1s);
     }
 }
