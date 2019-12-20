@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 
 using namespace std;
 using namespace std::this_thread;     // sleep_for, sleep_until
@@ -51,6 +52,7 @@ typedef struct
 */
 int fd;
 float temp = 20.0f; //current temperature
+float cpuTemp = 20.0f;
 /* fan speed --------------------------------------------------------
 
 */
@@ -58,7 +60,7 @@ int pwmIntensity = 20;
 /* fan tacho --------------------------------------------------------
 
 */
-float tacho = 0.0f;
+int tacho = 0;
 bool ps_tachoPin = false;
 int rcount = 0;
 float pTimer;
@@ -152,7 +154,7 @@ float compensateTemperature(int32_t t_fine) {
 
 void readRealTemp()
 {
-  	wiringPiI2CWriteReg8(fd, 0xf4, 0x25);   // pressure and temperature oversampling x 1, mode normal
+  	wiringPiI2CWriteReg8(fd, 0xf4, 0x25);   // temperature oversampling x 1, mode normal
 	bme280_calib_data cal;
 	readCalibrationData(fd, &cal);
 
@@ -166,6 +168,15 @@ void readRealTemp()
 float readTemp()
 {
     return random(15, 45);
+}
+
+void readCPUTemperature()
+{
+    FILE *temperatureFile;
+    temperatureFile = fopen ("/sys/class/thermal/thermal_zone0/temp", "r");
+    fscanf (temperatureFile, "%f", &cpuTemp);
+    cpuTemp /= 1000;
+    fclose (temperatureFile);
 }
 
 void setUpPWM() {
@@ -231,15 +242,14 @@ void setPWM()
 
 void setUpTacho() {
     pinMode(TachoPin, INPUT);
-    pTimer = (float)clock()/CLOCKS_PER_SEC;
+	pTimer = (float)clock()/CLOCKS_PER_SEC;
 }
 
 void readTacho()
 {
-
-    if((pTimer +1)<((float)clock()/CLOCKS_PER_SEC)){
+    if((pTimer +1)<((float)clock()/CLOCKS_PER_SEC))
+    {
         tacho  = rcount * 60;
-        cout << tacho <<endl;
         rcount = 0;
         pTimer = (float)clock()/CLOCKS_PER_SEC;
     }
@@ -259,17 +269,27 @@ void readTacho()
 
 int main ()
 {
-    wiringPiSetup();
+    if (wiringPiSetup() == -1) exit(1);
     speedList = readConfig();
     setUpTemp();
     setUpTacho();
     //setUpPWM();
+    int test = 0;
     while(true)
     {
-        readRealTemp();
-        setPWM();
-        std::cout << "current temperature " << temp << " with setted speed " << pwmIntensity << '\n';
         readTacho();
-        sleep_for(1s);
+        if(test > 500000)
+        {
+            readRealTemp();
+            readCPUTemperature();
+            setPWM();
+            
+            std::cout << "current outer temperature " << temp << '\n';
+            std::cout << "current cpu temperature " << cpuTemp << '\n';
+            std::cout << "current speed fan speed " << tacho << "rpm \n";
+            std::cout << "setted fan PWM " << pwmIntensity << '\n';
+            test = 0;
+        }
+        test++;
     }
 }

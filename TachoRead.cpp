@@ -58,7 +58,8 @@ void loop()
 				//cout<<rcount<<endl;
 
 			}
-	}else
+	}
+	else
 	{
 		ps_tachoPin = false;
 	}
