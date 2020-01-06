@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 
 using namespace std;
 using namespace std::this_thread; // sleep_for, sleep_until
@@ -208,7 +209,7 @@ void readRealTemp()
 
 	int32_t t_fine = getTemperatureCalibration(&cal, raw.temperature);
 	temp = compensateTemperature(t_fine);
-	cout << temp << endl;
+	//cout << temp << endl;
 }
 
 /**
@@ -218,11 +219,11 @@ void readRealTemp()
  */
 void readCPUTemperature()
 {
-    FILE *tempFile;
-    tempFile = fopen("sys/class/thermal/thermal_zone0/temp", "r");
-    fscanf(tempFile, "%f", &cpuTemp);
-    cpu /= 1000;
-    fclose(tempFile);
+    FILE *temperatureFile;
+    temperatureFile = fopen ("/sys/class/thermal/thermal_zone0/temp", "r");
+    fscanf (temperatureFile, "%f", &cpuTemp);
+    cpuTemp /= 1000;
+    fclose (temperatureFile);
 }
 
 /**
@@ -230,9 +231,9 @@ void readCPUTemperature()
  *
  * @return delta value of the linear function
  */
-int calcPWM (int x1, int y1, int x2, int y2)
+int calcPWM(int x1, int y1, int x2, int y2)
 {
-    return ((y2-y1)/(x2-x1)*(temp-x1)+y1);
+    return ((y2-y1)/(x2-x1)*(temp-x1)+ y1);
 }
 
 /**
@@ -242,9 +243,9 @@ int calcPWM (int x1, int y1, int x2, int y2)
  */
 void getPWMSpeed()
 {
-    pair<int, int> oldVar;
-    oldVar.first = 0;
-    oldVar.second = 0;
+    pair<int, int> oldVal;
+    oldVal.first = 0;
+    oldVal.second = 0;
     for (auto &speed : speedList) // access by reference to avoid copying
     {
         if(temp < speed.first)
@@ -253,7 +254,7 @@ void getPWMSpeed()
         }
         else
         {
-            if(oldVar.first > 0)
+            if(oldVal.first > 0)
             {
                 if(pwmIntensity > MaxPWM)
                 {
@@ -265,15 +266,16 @@ void getPWMSpeed()
                 }
                 else
                 {
-                    pwmIntensity = calcPWM(oldVar.first, oldVar.second, speed.first, speed.second)
+                    pwmIntensity = calcPWM(oldVal.first, oldVal.second, speed.first, speed.second);
                 }
             }
             else
             {
                 pwmIntensity = speed.second;
             }
+            
         }
-        oldVar = speed;
+        oldVal = speed;
     }
 }
 
@@ -309,7 +311,7 @@ void readTacho()
     if ((pTimer + 1)<((float)clock()/CLOCKS_PER_SEC)) //if one second is gone
     {
         tacho  = rcount * 60;
-        cout << tacho <<endl; //debug
+        //cout << tacho <<endl; //debug
         rcount = 0;
         pTimer = (float)clock()/CLOCKS_PER_SEC;
     }
@@ -333,24 +335,27 @@ void readTacho()
  */
 int main ()
 {
-    if (wiringPiSetup() ==-1) exit(1); //setup the wiringPi
-    speedList = readConfig(); //load the config
-    setUpTacho(); //setup the tacho reading
-    setUpTemp(); //setup the temperature reading
+    if (wiringPiSetup() == -1) exit(1);
+    speedList = readConfig();
+    setUpTemp();
+    setUpTacho();
+    //setUpPWM();
     int interval = 0;
-    while(true) //endless
+    while(true)
     {
-        readTacho(); //read tacho speed
+        readTacho();
         if(interval > 500000)
         {
-            readRealTemp(); //read temperature
+            readRealTemp();
             readCPUTemperature();
-            setPWM(); //set pwm intensity
+            setPWM();
+            
             std::cout << "current outer temperature " << temp << '\n';
             std::cout << "current cpu temperature " << cpuTemp << '\n';
             std::cout << "current speed fan speed " << tacho << "rpm \n";
             std::cout << "setted fan PWM " << pwmIntensity << '\n';
-            test = 0;
+            interval = 0;
         }
+        interval++;
     }
 }
